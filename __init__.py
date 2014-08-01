@@ -19,3 +19,5 @@ Created by Jonathan Denning, Jonathan Williamson, and Patrick Moore
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+__all__ = ["common_classes", "common_drawing", "common_utilities"]
+
