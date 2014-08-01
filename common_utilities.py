@@ -45,13 +45,12 @@ class AddonLocator(object):
 
 def get_settings():
     stack = inspect.stack()
-    fullpath = os.path.dirname(stack[0][1])
-    foldername = None
-    while fullpath:
-        fullpath,foldername = os.path.split(fullpath)
+    for entry in stack:
+        folderpath = os.path.dirname(entry[1])
+        foldername = os.path.basename(folderpath)
         if foldername != 'lib': break
-        foldername = None
-    assert foldername, 'could not find non-"lib" folder'
+    else:
+        assert False, 'could not find non-"lib" folder'
     settings = bpy.context.user_preferences.addons[foldername].preferences
     return settings
 
