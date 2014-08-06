@@ -231,16 +231,16 @@ def ray_cast_stroke(context, ob, stroke):
     
     return world_stroke
 
-def frange(start, end, step):
+def frange(start, end, stepsize):
     v = start
-    if step > 0:
+    if stepsize > 0:
         while v < end:
             yield v
-            v += step
+            v += stepsize
     else:
         while v > end:
             yield v
-            v += step
+            v += stepsize
 
 def vector_compwise_mult(a,b):
     return Vector(ax*bx for ax,bx in zip(a,b))
