@@ -201,3 +201,10 @@ def draw_outline_or_region(mode, points, color):
  
         bgl.glEnd()
 
+
+def draw_bmedge(context, bmedge, mx, thickness, color):
+    '''
+    simple wrapper to drawp a bmedge
+    '''
+    points = [mx * bmedge.verts[0].co, mx*bmedge.verts[1].co]
+    draw_polyline_from_3dpoints(context, points, color, thickness, 'GL_LINE_SMOOTH')
