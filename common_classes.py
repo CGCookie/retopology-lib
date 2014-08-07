@@ -105,6 +105,7 @@ class SketchBrush(object):
             else:
                 #defalt quad size in case we don't get to raycast succesfully
                 #self.world_width = self.ob.dimensions.length * 1/self.settings.density_factor
+                pass
                 
             w = common_utilities.ray_cast_world_size(region, rv3d, center, self.pxl_rad, self.ob, self.settings)
             #self.world_width = w if w and w < float('inf') else self.ob.dimensions.length * 1/self.settings.density_factor
