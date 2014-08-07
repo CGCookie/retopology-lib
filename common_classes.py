@@ -100,14 +100,14 @@ class SketchBrush(object):
                 # take median and correct for the view being parallel to the surface normal
                 widths.sort()
                 w = widths[int(l/2)+1] if l%2==1 else (widths[int(l/2)-1]+widths[int(l/2)+1])/2
-                self.world_width = w * abs(vec.dot(center_ray[1].normalized()))
+                #self.world_width = w * abs(vec.dot(center_ray[1].normalized()))
 
             else:
                 #defalt quad size in case we don't get to raycast succesfully
-                self.world_width = self.ob.dimensions.length * 1/self.settings.density_factor
+                #self.world_width = self.ob.dimensions.length * 1/self.settings.density_factor
                 
             w = common_utilities.ray_cast_world_size(region, rv3d, center, self.pxl_rad, self.ob, self.settings)
-            self.world_width = w if w and w < float('inf') else self.ob.dimensions.length * 1/self.settings.density_factor
+            #self.world_width = w if w and w < float('inf') else self.ob.dimensions.length * 1/self.settings.density_factor
             #print(w)
             
         
