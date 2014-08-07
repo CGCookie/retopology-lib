@@ -108,7 +108,7 @@ class SketchBrush(object):
                 pass
                 
             w = common_utilities.ray_cast_world_size(region, rv3d, center, self.pxl_rad, self.ob, self.settings)
-            #self.world_width = w if w and w < float('inf') else self.ob.dimensions.length * 1/self.settings.density_factor
+            self.world_width = w if w and w < float('inf') else self.ob.dimensions.length * 1.0 / 40.0
             #print(w)
             
         
