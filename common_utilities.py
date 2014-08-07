@@ -44,14 +44,15 @@ class AddonLocator(object):
         print("Addon path has been registered into system path for this session")
 
 def get_settings():
+    addons = bpy.context.user_preferences.addons
     stack = inspect.stack()
     for entry in stack:
         folderpath = os.path.dirname(entry[1])
         foldername = os.path.basename(folderpath)
-        if foldername != 'lib': break
+        if foldername != 'lib' and foldername in addons: break
     else:
         assert False, 'could not find non-"lib" folder'
-    settings = bpy.context.user_preferences.addons[foldername].preferences
+    settings = addons[foldername].preferences
     return settings
 
 def dprint(s, l=2):
