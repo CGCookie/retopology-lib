@@ -496,4 +496,17 @@ def space_evenly_on_path(verts, edges, segments, shift = 0, debug = False):  #pr
         print(eds)
         
     return new_verts, eds
+
+def capitalize_all(my_string):
+    '''
+    '''
+    
+    parts = my_string.split(' ')
+    cap_parts = []
+    for p in parts:
+        cap_parts.append(p.capitalize())
+        
+    out = ' '.join(cap_parts)
+    
+    return out
  
