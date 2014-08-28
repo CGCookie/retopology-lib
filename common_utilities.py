@@ -49,7 +49,7 @@ def get_settings():
     for entry in stack:
         folderpath = os.path.dirname(entry[1])
         foldername = os.path.basename(folderpath)
-        if foldername != 'lib' and foldername in addons: break
+        if foldername not in {'lib','addons'} and foldername in addons: break
     else:
         assert False, 'could not find non-"lib" folder'
     settings = addons[foldername].preferences
