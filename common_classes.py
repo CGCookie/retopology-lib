@@ -21,23 +21,219 @@ Created by Jonathan Denning, Jonathan Williamson, and Patrick Moore
 
 # Add the current __file__ path to the search path
 import sys, os
-sys.path.append(os.path.dirname(__file__))
 
 import math
 import copy
 import time
-import bpy, bmesh, blf
+import bpy, bmesh, blf, bgl
 from bpy.props import EnumProperty, StringProperty,BoolProperty, IntProperty, FloatVectorProperty, FloatProperty
 from bpy.types import Operator, AddonPreferences
 from bpy_extras.view3d_utils import location_3d_to_region_2d, region_2d_to_vector_3d, region_2d_to_location_3d
 from mathutils import Vector
 from mathutils.geometry import intersect_line_plane, intersect_point_line
 
-import common_utilities
-import common_drawing
+from . import common_utilities
+from . import common_drawing
 
 
-
+class MenuSearchPopup(object):
+    def __init__(self,context,x,y, items):
+        
+        #the top center of the menu
+        #which will fill in belwo
+        self.x = x
+        self.y = y
+        
+        self.text_size = 18
+        self.text_dpi = 72
+        
+        self.input_string = ''
+        self.max_str_len = 20
+        self.items = items
+        
+        self.filter_items = []
+        self.filter_item_index = 0
+        self.max_filter_items = 6
+        
+        self.output = None
+        
+        #settings
+        self.border = 10
+        self.spacer = 5
+        
+        #establish width/box height etc
+        bigdimX=bigdimY=0
+        large_text = 'A' * self.max_str_len
+        #find the biggest word in the menu and base the size of all buttons on that word
+        blf.size(0, self.text_size, self.text_dpi)
+        dimension = blf.dimensions(0, large_text)
+    
+        if dimension[0]>bigdimX:
+            bigdimX = dimension[0]
+        if dimension[1]>bigdimY:
+            bigdimY = dimension[1]
+                
+        
+        self.box_height = bigdimY
+        self.width = bigdimX + 2 * self.border
+        self.height = self.border + bigdimY + 2 * self.spacer + self.border
+        
+    def search_items(self):
+        self.filter_items = []
+        if not len(self.input_string):
+            return
+        
+        for menu_item in self.items:
+            if menu_item.startswith(self.input_string.lower()):
+                self.filter_items.append(menu_item)
+                continue
+            
+            if menu_item in self.input_string.lower():
+                self.filter_items.append(menu_item)
+                continue
+        
+    def modal_input_event(self,eventd):
+        
+        letter = eventd['type']
+        
+        alphabet_lower = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',' ']
+        alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z', ' ']
+        actions = {'DEL', 'BACK_SPACE','NUMPAD_PLUS', 'NUMPAD_MINUS', 'DOWN_ARROW', 'UP_ARROW'}
+        
+        if letter in actions and eventd['press']:
+            if letter in {'DEL', 'BACK_SPACE'}:
+                if len(self.input_string):
+                    self.input_string = self.input_string[:-1]
+                    self.search_items()
+                    
+            if letter == 'DOWN_ARROW':
+                if self.filter_item_index < len(self.filter_items) - 1:
+                    self.filter_item_index += 1
+                    
+            if letter == 'UP_ARROW':
+                if self.filter_item_index > 0:
+                    self.filter_item_index -= 1
+                    
+            if letter == 'NUMPAD_PLUS':
+                self.text_size += 1
+                
+            if letter == 'NUMPAD_MINUS':
+                if self.text_size > 12:
+                    self.text_size -= 1
+                
+        if letter in alphabet and len(self.input_string) < self.max_str_len and eventd['press']:
+            if eventd['shift']:
+                self.input_string += letter
+                
+            else:
+                ind = alphabet.index(letter)
+                self.input_string += alphabet_lower[ind]
+                
+            self.search_items()
+            
+        if letter == 'SPACE' and eventd['press']:
+            self.input_string += ' '
+            self.search_items()
+                
+    def pick_mouse(self,mouse_x,mouse_y):
+        
+        left = self.x - self.width/2
+        right = left + self.width
+        bottom = self.y - self.height
+        top = self.y
+        
+        if not mouse_x < right and mouse_x > left:
+            return
+        
+        if not mouse_y < top and mouse_y > bottom:
+            return
+        
+        #work our way down from top
+        items_top = self.y - self.border - self.box_height - 3 * self.spacer
+        dist = items_top - mouse_y
+        
+        if dist < 0:
+            return
+        
+        ind = math.floor(dist/(self.box_height + 2 * self.spacer))
+        self.filter_item_index = ind
+        return True
+    
+    def draw(self,context):
+        txt_color = (.7,1,.7,1)
+        bg_color = (.1, .1, .1, .7)
+        search_color = (.2, .2, .2, 1)
+        border_color = (.05, .05, .05, 1)
+        highlight_color = (0,.3, 1, .8)
+        
+        #establish width
+        bigdimX=bigdimY=0
+        large_text = 'A' * self.max_str_len
+        #find the biggest word in the menu and base the size of all buttons on that word
+        blf.size(0, self.text_size, self.text_dpi)
+        dimension = blf.dimensions(0, large_text)
+    
+        if dimension[0]>bigdimX:
+            bigdimX = dimension[0]
+        if dimension[1]>bigdimY:
+            bigdimY = dimension[1]
+                
+        
+        self.box_height = bigdimY
+        self.width = bigdimX + 2 * self.border
+        
+        if self.input_string == 'all':
+            n_items = len(self.items)
+            self.filter_items = self.items
+        else:
+            n_items = min([len(self.filter_items), self.max_filter_items])
+        
+        if n_items == 0:
+            self.height = self.border + bigdimY + 2 * self.spacer + self.border
+        else:
+            self.height = self.border + bigdimY + 2*self.spacer + n_items*(2*self.spacer + bigdimY) + self.border
+        
+        left = self.x - self.width/2
+        right = left + self.width
+        bottom = self.y - self.height
+        top = self.y
+        
+        left_text = left + self.border
+        bottom_text = bottom + self.border
+        
+        #draw the whole menu bacground
+        outline = common_drawing.round_box(left, bottom, left +self.width, bottom + self.height, (self.box_height + 2 * self.spacer)/6)
+        common_drawing.draw_outline_or_region('GL_POLYGON', outline, bg_color)
+        common_drawing.draw_outline_or_region('GL_LINE_LOOP', outline, border_color)
+        
+        #draw the search box
+        s_box = common_drawing.round_box(left + self.border, top - self.border - bigdimY - 2 * self.spacer, right - self.border, top - self.border, (self.box_height + 2 * self.spacer)/6)
+        common_drawing.draw_outline_or_region('GL_POLYGON', s_box, search_color)
+        common_drawing.draw_outline_or_region('GL_LINE_LOOP', s_box, border_color)
+        
+        blf.size(0, self.text_size, self.text_dpi)
+        
+        if len(self.input_string):
+            txt_x = left_text + self.spacer
+            txt_y = top - self.border - self.spacer - bigdimY
+            blf.position(0,txt_x, txt_y, 0)
+            bgl.glColor4f(*txt_color)
+            blf.draw(0, self.input_string)
+            
+        if len(self.filter_items):
+            for i, txt in enumerate(self.filter_items):
+                if i > self.max_filter_items-1 and not self.input_string == 'all':
+                    return
+                txt_x = left_text + self.spacer
+                txt_y = top - self.border - bigdimY - 2*self.spacer - (i+1) * (bigdimY + 2 * self.spacer)
+                if i == self.filter_item_index:
+                    box = [(left_text, txt_y - self.spacer),(left_text + bigdimX , txt_y-self.spacer),(left_text + bigdimX, txt_y + bigdimY + self.spacer),(left_text, txt_y + bigdimY + self.spacer)]
+                    common_drawing.draw_outline_or_region('GL_POLYGON', box, highlight_color)
+                    
+                blf.position(0,txt_x, txt_y, 0)
+                bgl.glColor4f(*txt_color)
+                blf.draw(0, common_utilities.capitalize_all(txt))
+        
 class SketchBrush(object):
     def __init__(self,context,settings, x,y,pixel_radius, ob, n_samples = 15):
         
@@ -108,7 +304,7 @@ class SketchBrush(object):
                 pass
                 
             w = common_utilities.ray_cast_world_size(region, rv3d, center, self.pxl_rad, self.ob, self.settings)
-            self.world_width = w if w and w < float('inf') else self.ob.dimensions.length * 1.0 / 40.0
+            self.world_width = w if w and w < float('inf') else self.ob.dimensions.length #* 1/self.settings.density_factor
             #print(w)
             
         
