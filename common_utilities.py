@@ -200,6 +200,8 @@ def ray_cast_path(context, ob, screen_coords):
     rays = [(r2d_origin(rgn, rv3d, co),r2d_vector(rgn, rv3d, co).normalized()) for co in screen_coords]
     back = 0 if rv3d.is_perspective else 1
     mult = 100 #* (1 if rv3d.is_perspective else -1)
+    bver = '%03d.%03d.%03d' % (bpy.app.version[0],bpy.app.version[1],bpy.app.version[2])
+    if bver < '002.072.000': mult *= -1
     
     hits = [ob.ray_cast(imx*(o-d*back*mult), imx*(o+d*mult)) for o,d in rays]
     world_coords = [mx*hit[0] for hit in hits if hit[2] != -1]
@@ -225,6 +227,8 @@ def ray_cast_stroke(context, ob, stroke):
     
     back = 0 if rv3d.is_perspective else 1
     mult = 100 #* (1 if rv3d.is_perspective else -1)
+    bver = '%03d.%03d.%03d' % (bpy.app.version[0],bpy.app.version[1],bpy.app.version[2])
+    if bver < '002.072.000': mult *= -1
     
     hits = [ob.ray_cast(imx*(o-d*back*mult), imx*(o+d*mult)) for o,d in rays]
     world_stroke = [(mx*hit[0],stroke[i][1])  for i, hit in enumerate(hits) if hit[2] != -1]
