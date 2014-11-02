@@ -496,4 +496,83 @@ def space_evenly_on_path(verts, edges, segments, shift = 0, debug = False):  #pr
         print(eds)
         
     return new_verts, eds
- 
+
+def rot_between_vecs(v1,v2, factor = 1):
+    '''
+    args:
+    v1 - Vector Init
+    v2 - Vector Final
+    
+    factor - will interpolate between them.  [0,1]
+    
+    returns the quaternion representing rotation between v1 to v2
+    
+    v2 = quat * v1
+    
+    notes: doesn't test for parallel vecs
+    '''
+    v1.normalize()
+    v2.normalize()
+    angle = factor * v1.angle(v2)
+    axis = v1.cross(v2)
+    axis.normalize()
+    sin = math.sin(angle/2)
+    cos = math.cos(angle/2)
+    
+    quat = Quaternion((cos, sin*axis[0], sin*axis[1], sin*axis[2]))
+    
+    return quat 
+
+def  fit_path_to_endpoints(path,v0,v1):
+    '''
+    will rescale/rotate/tranlsate a path to fit between v0 and v1
+    v0 is starting point corrseponding to path[0]
+    v1 is endpoint corresponding to path[1]
+    ''' 
+    new_path = path.copy()
+    
+    vi_0 = path[0]
+    vi_1 = path[-1]
+    
+    net_initial = vi_1 - vi_0
+    net_final = v1 - v0
+        
+    scale = net_final.length/net_initial.length
+    rot = rot_between_vecs(net_initial,net_final)
+    
+    
+    for i, v in enumerate(new_path):
+        new_path[i] = rot * v - vi_0
+    
+    for i, v in enumerate(new_path):
+        new_path[i] = scale * v
+            
+    trans  = v0 - new_path[0]
+    
+    for i, v in enumerate(new_path):
+        new_path[i] += trans
+        
+    return new_path
+
+def nearest_point_in_list(test_vert, vert_list):
+    '''
+    find the closest point to a test vert from a
+    list of vertices
+    
+    Brute force
+    Not fast
+    not smart
+    
+    return index in list
+    '''    
+    
+    lens = [None]*len(vert_list)
+    
+    for i,v in enumerate(vert_list):
+        R = test_vert - v
+        lens[i] = R.length
+        
+    smallest = min(lens)
+    n = lens.index(smallest)
+    
+    return n
