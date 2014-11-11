@@ -88,28 +88,12 @@ class SketchBrush(object):
         self.world_sample_points = []
         
         if center_ray[2] != -1:
-            for pt in self.sample_points:
-                V, ray = common_utilities.ray_cast_region2d(region, rv3d, pt, self.ob, self.settings)
-                if ray[2] != -1:
-                    widths.append((wrld_mx * ray[0] - wrld_mx * center_ray[0]).length)
-                    self.world_sample_points.append(wrld_mx * ray[0])
-            
-            l = len(widths)
-            if l:
-                # take median and correct for the view being parallel to the surface normal
-                widths.sort()
-                w = widths[int(l/2)+1] if l%2==1 else (widths[int(l/2)-1]+widths[int(l/2)+1])/2
-                #self.world_width = w * abs(vec.dot(center_ray[1].normalized()))
-
-            else:
-                #defalt quad size in case we don't get to raycast succesfully
-                #self.world_width = self.ob.dimensions.length * 1/self.settings.density_factor
-                pass
-                
             w = common_utilities.ray_cast_world_size(region, rv3d, center, self.pxl_rad, self.ob, self.settings)
-            self.world_width = w if w and w < float('inf') else self.ob.dimensions.length * 1.0 / 40.0
+            self.world_width = w if w and w < float('inf') else self.ob.dimensions.length
             #print(w)
-            
+        else:
+            #print('no hit')
+            pass
         
         
     def brush_pix_size_init(self,context,x,y):

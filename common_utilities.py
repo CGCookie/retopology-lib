@@ -85,21 +85,20 @@ def ray_cast_region2d(region, rv3d, screen_coord, ob, settings):
     
     ray_vector = region_2d_to_vector_3d(region, rv3d, screen_coord).normalized()
     ray_origin = region_2d_to_origin_3d(region, rv3d, screen_coord)
-    if not rv3d.is_perspective:
+    
+    if rv3d.is_perspective:
+        #ray_target = ray_origin + ray_vector * 100
+        r1 = get_ray_origin(ray_origin, -ray_vector, ob)
+        ray_target = r1
+    else:
         # need to back up the ray's origin, because ortho projection has front and back
         # projection planes at inf
-        if abs(ray_vector.y)<1:
-            ray_vector = -ray_vector # why does this need to be negated?
-            # but not when ortho front/back view??
-        r0 = get_ray_origin(ray_origin, ray_vector, ob)
+        r0 = get_ray_origin(ray_origin,  ray_vector, ob)
         r1 = get_ray_origin(ray_origin, -ray_vector, ob)
         dprint(str(r0) + '->' + str(r1), l=4)
         ray_origin = r0
         ray_target = r1
-    else:
-        #ray_target = ray_origin + ray_vector * 100
-        r1 = get_ray_origin(ray_origin, -ray_vector, ob)
-        ray_target = r1
+    
     #TODO: make a max ray depth or pull this depth from clip depth
     
     ray_start_local  = imx * ray_origin
@@ -200,7 +199,9 @@ def ray_cast_path(context, ob, screen_coords):
     
     rays = [(r2d_origin(rgn, rv3d, co),r2d_vector(rgn, rv3d, co).normalized()) for co in screen_coords]
     back = 0 if rv3d.is_perspective else 1
-    mult = 100 * (1 if rv3d.is_perspective else -1)
+    mult = 100 #* (1 if rv3d.is_perspective else -1)
+    bver = '%03d.%03d.%03d' % (bpy.app.version[0],bpy.app.version[1],bpy.app.version[2])
+    if bver < '002.072.000' and not rv3d.is_perspective: mult *= -1
     
     hits = [ob.ray_cast(imx*(o-d*back*mult), imx*(o+d*mult)) for o,d in rays]
     world_coords = [mx*hit[0] for hit in hits if hit[2] != -1]
@@ -225,9 +226,11 @@ def ray_cast_stroke(context, ob, stroke):
     rays = [(r2d_origin(rgn, rv3d, co[0]),r2d_vector(rgn, rv3d, co[0]).normalized()) for co in stroke]
     
     back = 0 if rv3d.is_perspective else 1
-    mult = 100 * (1 if rv3d.is_perspective else -1)
+    mult = 100 #* (1 if rv3d.is_perspective else -1)
+    bver = '%03d.%03d.%03d' % (bpy.app.version[0],bpy.app.version[1],bpy.app.version[2])
+    if bver < '002.072.000' and not rv3d.is_perspective: mult *= -1
     
-    hits = [ob.ray_cast(imx*(o-d*back*mult), imx*(o+d*mult)) for i, (o,d) in enumerate(rays)]
+    hits = [ob.ray_cast(imx*(o-d*back*mult), imx*(o+d*mult)) for o,d in rays]
     world_stroke = [(mx*hit[0],stroke[i][1])  for i, hit in enumerate(hits) if hit[2] != -1]
     
     return world_stroke
@@ -308,24 +311,24 @@ def get_ray_origin_target(region, rv3d, screen_coord, ob):
     return (ray_origin, ray_target)
 
 def ray_cast_world_size(region, rv3d, screen_coord, screen_size, ob, settings):
-    mx = ob.matrix_world
+    mx  = ob.matrix_world
     imx = mx.inverted()
     
     ray_origin,ray_target = get_ray_origin_target(region, rv3d, screen_coord, ob)
-    ray_direction = (ray_target - ray_origin).normalized()
+    ray_direction         = (ray_target - ray_origin).normalized()
     
     ray_start_local  = imx * ray_origin
     ray_target_local = imx * ray_target
-    pt,no,idx = ob.ray_cast(ray_start_local, ray_target_local)
-    if idx == -1: return None
+    pt_local,no,idx  = ob.ray_cast(ray_start_local, ray_target_local)
+    if idx == -1: return float('inf')
     
-    pt = mx * pt
+    pt = mx * pt_local
     
     screen_coord_offset = (screen_coord[0]+screen_size, screen_coord[1])
     ray_origin_offset,ray_target_offset = get_ray_origin_target(region, rv3d, screen_coord_offset, ob)
     ray_direction_offset = (ray_target_offset - ray_origin_offset).normalized()
     
-    d = get_ray_plane_intersection(ray_origin_offset, ray_direction_offset, pt, rv3d.view_rotation*Vector((0,0,-1)))
+    d = get_ray_plane_intersection(ray_origin_offset, ray_direction_offset, pt, (rv3d.view_rotation*Vector((0,0,-1))).normalized() )
     pt_offset = ray_origin_offset + ray_direction_offset * d
     
     return (pt-pt_offset).length
@@ -334,16 +337,20 @@ def ray_cast_world_size(region, rv3d, screen_coord, screen_size, ob, settings):
 
 def get_ray_plane_intersection(ray_origin, ray_direction, plane_point, plane_normal):
     d = ray_direction.dot(plane_normal)
-    if ray_direction.dot(plane_normal) <= 0.001: return float('inf')
+    if abs(ray_direction.dot(plane_normal)) <= 0.00000001: return float('inf')
     return (plane_point-ray_origin).dot(plane_normal) / d
 
 def get_ray_origin(ray_origin, ray_direction, ob):
     mx = ob.matrix_world
-    q = ob.rotation_quaternion
+    q  = ob.rotation_quaternion
     bbox = [Vector(v) for v in ob.bound_box]
-    bm,bM = min(bbox),max(bbox)
+    bm = Vector((min(v.x for v in bbox),min(v.y for v in bbox),min(v.z for v in bbox)))
+    bM = Vector((max(v.x for v in bbox),max(v.y for v in bbox),max(v.z for v in bbox)))
     x,y,z = Vector((1,0,0)),Vector((0,1,0)),Vector((0,0,1))
-    planes = [(bm,x), (bm,y), (bm,z), (bM,-x), (bM,-y), (bM,-z)]
+    planes = []
+    if abs(ray_direction.x)>0.0001: planes += [(bm,x), (bM,-x)]
+    if abs(ray_direction.y)>0.0001: planes += [(bm,y), (bM,-y)]
+    if abs(ray_direction.z)>0.0001: planes += [(bm,z), (bM,-z)]
     dists = [get_ray_plane_intersection(ray_origin,ray_direction,mx*p0,q*no) for p0,no in planes]
     dprint(dists, l=4)
     return ray_origin + ray_direction * min(dists)
