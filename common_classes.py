@@ -21,7 +21,6 @@ Created by Jonathan Denning, Jonathan Williamson, and Patrick Moore
 
 # Add the current __file__ path to the search path
 import sys, os
-sys.path.append(os.path.dirname(__file__))
 
 import math
 import copy
@@ -33,8 +32,8 @@ from bpy_extras.view3d_utils import location_3d_to_region_2d, region_2d_to_vecto
 from mathutils import Vector
 from mathutils.geometry import intersect_line_plane, intersect_point_line
 
-import common_utilities
-import common_drawing
+from . import common_utilities
+from . import common_drawing
 
 
 
